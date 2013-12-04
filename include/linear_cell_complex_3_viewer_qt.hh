@@ -36,6 +36,13 @@ typedef typename Local_kernel::Vector_3 Local_vector;
 template<class LCC, int dim=LCC::ambient_dimension>
 struct Geom_utils;
 
+struct Color
+{
+    float r;
+    float g;
+    float b;
+};
+
 template<class LCC>
 struct Geom_utils<LCC,3>
 {
@@ -130,8 +137,10 @@ protected :
   // Draw the facet given by ADart
   void drawFacet(Dart_handle ADart, int AMark)
   {
+    Color c = ADart->template attribute<2>()->info();
+    
     ::glBegin(GL_POLYGON);
-    ::glColor3f(.7,.7,.7);
+    ::glColor3f(c.r,c.g,c.b);
 
     // If Flat shading: 1 normal per polygon
     if (flatShading)
@@ -175,7 +184,10 @@ protected :
   {
     glDepthRange (0.0, 0.9);
     glBegin(GL_LINES);
-    ::glColor3f(.2,.2,.6);
+
+    Color c = ADart->template attribute<1>()->info();
+    
+    ::glColor3f(c.r,c.g,c.b);
     for (typename LCC::template Dart_of_orbit_range<1>::iterator
            it=lcc.template darts_of_orbit<1>(ADart).begin();
          it.cont(); ++it)
@@ -215,9 +227,12 @@ protected :
         {
           Local_point p = geomutils.get_point(it);
 
+          Dart_handle dh = lcc.dart_handle(*it);
+          Color color = lcc.vertex_attribute(dh)->info();
+          
           glDepthRange (0.0, 0.9);
           glBegin(GL_POINTS);
-          ::glColor3f(.6,.2,.8);
+          ::glColor3f(color.r,color.g,color.b);
           glVertex3f(p.x(),p.y(),p.z());
           glEnd();
           glDepthRange (0.1, 1.0); 

@@ -62,6 +62,8 @@ typedef CGAL::Linear_cell_complex<3, 3, Traits, Myitem>     LCC_3;
 
 int main(int narg, char** argv)
 {
+    srand(time(NULL));
+    
     if (narg<2 || (!strcmp(argv[1],"-h") || !strcmp(argv[1],"-?")) )
     {
         std::cout<<"Usage : load_off filename"<<std::endl
@@ -77,25 +79,55 @@ int main(int narg, char** argv)
 
     LCC_3 lcc;
     CGAL::load_off(lcc, ifs);
-    
+
+
+    //INIT
     for(typename LCC_3::Dart_range::iterator it=lcc.darts().begin(),
         itend=lcc.darts().end(); it!=itend; ++it)
     {
-        //lcc.set_attribute<0>(it, lcc.create_attribute<0>());
-        lcc.set_attribute<1>(it, lcc.create_attribute<1>());
-        lcc.set_attribute<2>(it, lcc.create_attribute<2>());
-        
         it->attribute<0>()->info().r = 1;
         it->attribute<0>()->info().g = 0;
         it->attribute<0>()->info().b = 0;
 
-        it->attribute<1>()->info().r = 0.5;
-        it->attribute<1>()->info().g = 0;
-        it->attribute<1>()->info().b = 0.5;
-        
-        it->attribute<2>()->info().r = 1;
-        it->attribute<2>()->info().g = 0.5;
-        it->attribute<2>()->info().b = 0.5;
+        if (it->attribute<1>() == NULL)
+        {
+            lcc.set_attribute<1>(it, lcc.create_attribute<1>());
+            it->attribute<1>()->info().r = 0.5;
+            it->attribute<1>()->info().g = 0;
+            it->attribute<1>()->info().b = 0.5;
+        }
+        if (it->attribute<2>() == NULL)
+        {
+            lcc.set_attribute<2>(it, lcc.create_attribute<2>());
+            it->attribute<2>()->info().r = 0;
+            it->attribute<2>()->info().g = 0;
+            it->attribute<2>()->info().b = 0;
+        }
+    }
+
+    int nb_cells = lcc.one_dart_per_cell<2>().size();
+    printf("Nb Cells %d\n", nb_cells);
+    int n_seed = 3;
+    //RANDOM SEED
+    /*for(int i=0; i<n_seed; i++)
+    {
+        int r = rand()%nb_cells;
+        printf("R %d\n", r);
+        typename LCC_3::Dart_range::iterator it = lcc.one_dart_per_cell<2>().begin();
+        for(int j=0; j<r; j++)
+            it++;
+        it->attribute<2>()->info().r = 0.2;
+        it->attribute<2>()->info().g = 0.4;
+        it->attribute<2>()->info().b = 0.6;
+    }*/
+    //Voir iterer sur les attributs
+    typename LCC_3::Dart_range::iterator it = lcc.one_dart_per_cell<2>().begin();
+    for(int j=0; j<nb_cells; j++)
+    {
+        it->attribute<2>()->info().r = 0.2;
+        it->attribute<2>()->info().g = 0.4;
+        it->attribute<2>()->info().b = 0.6;
+        it++;
     }
     
     lcc.display_characteristics(std::cout) << ", valid=" << lcc.is_valid() << std::endl;

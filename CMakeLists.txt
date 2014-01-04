@@ -18,13 +18,6 @@ include("CMakeLCCViewerQt.inc")
 
 include_directories(include)
 
-
-#add_executable(load_off src/load_off.cc)
-#target_link_libraries(load_off ${MAP_VIEWER_LIBRARIES} CGAL)
-
-#add_executable(load_tetmesh src/load_tetmesh.cc)
-#target_link_libraries(load_tetmesh ${MAP_VIEWER_LIBRARIES} CGAL)
-
 add_executable(segmentation src/segmentation.cc)
 target_link_libraries(segmentation ${MAP_VIEWER_LIBRARIES} CGAL)
 

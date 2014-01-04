@@ -61,24 +61,32 @@ typedef CGAL::Linear_cell_complex				< 3, 3, Traits, Myitem >	LCC_3;
 
 
 
-int main(int narg, char** argv)
+int main(int argc, char* argv[])
 {
 	srand(time(NULL));
-    
-	if (narg<2 || (!strcmp(argv[1],"-h") || !strcmp(argv[1],"-?")) )
+	
+	float threshold = 0.8;
+	
+	if ( argc < 2 || !strcmp(argv[1],"-h") || !strcmp(argv[1],"-?") )
 	{
 		std::cout	<< "Usage : load_off filename"					<< std::endl
 							<< "   filename being an '.off' file."	<< std::endl;
 		return EXIT_FAILURE;
 	}
 	
+	if ( argc < 4 || !strcmp(argv[2], "-s") )
+	{
+		threshold = atof(argv[3]);
+	}
+			
 	std::ifstream ifs(argv[1]);
 	if ( ifs.fail() )
 	{
 		std::cout << "Error : impossible to open file " << argv[1] << std::endl;
 		return EXIT_FAILURE;
 	}
-
+	
+	
 	LCC_3 lcc;
 	CGAL::load_off(lcc, ifs);
 
@@ -91,7 +99,7 @@ int main(int narg, char** argv)
 		it->attribute<0>()->info().r = 1;
 		it->attribute<0>()->info().g = 0;
 		it->attribute<0>()->info().b = 0;
-
+		
 		if (it->attribute<1>() == NULL)
 		{
 			lcc.set_attribute<1>(it, lcc.create_attribute<1>());
@@ -99,6 +107,7 @@ int main(int narg, char** argv)
 			it->attribute<1>()->info().g = 0;
 			it->attribute<1>()->info().b = 0.5;
 		}
+		
 		if (it->attribute<2>() == NULL)
 		{
 			lcc.set_attribute<2>(it, lcc.create_attribute<2>());
@@ -115,25 +124,19 @@ int main(int narg, char** argv)
 	/* ======================================================================== *
 	 * SEGMENTATION																															*
 	 * ======================================================================== */
-	// UnionFind& uf = lcc.darts().begin()->attribute<2>()->info();
 	std::cout << "Computing Segmentation ... ";
 	fflush(stdout);
-	
 	
 	Geom_utils<LCC_3> geomutils;
 	
 	for ( typename LCC_3::Dart_range::iterator it1 = it_begin; it1 != it_end; ++it1 )
 		for (	typename LCC_3::Dart_of_orbit_range<2>::iterator it2 = lcc.darts_of_orbit<2>(it1).begin(); it2.cont(); ++it2 )
 		{
-		
 			Local_vector n1 = geomutils.get_facet_normal(lcc, it1);
 			Local_vector n2 = geomutils.get_facet_normal(lcc, it2);
-	
-			if (n1 * n2 > 0.8)
+			if (n1 * n2 > threshold)
 				UnionFind::merge(it1->attribute<2>()->info(), it2->attribute<2>()->info());
-
 		}
-		
 	
 	std::cout << "done" << std::endl;
 	/* ======================================================================== */

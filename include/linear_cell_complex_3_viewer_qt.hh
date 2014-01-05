@@ -163,9 +163,9 @@ class SimpleLCCViewerQt : public QGLViewer
 			
 			UnionFind& uf = ADart->template attribute<2>()->info();
 			Color c;
-			c.r = 0.5 + 0.5*cos(3.0 * uf.root().id());
-			c.g = 0.5 + 0.5*cos(5.0 * uf.root().id());
-			c.b = 0.5 + 0.5*cos(7.0 * uf.root().id());
+			c.r = 0.5 + 0.5*cos(0.0 + 3.0 * uf.root().id());
+			c.g = 0.5 + 0.5*cos(1.0 + 5.0 * uf.root().id());
+			c.b = 0.5 + 0.5*cos(2.0 + 7.0 * uf.root().id());
 			
 			glBegin(GL_POLYGON);
 			glColor3f(c.r, c.g, c.b);

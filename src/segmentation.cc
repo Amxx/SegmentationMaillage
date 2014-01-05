@@ -53,7 +53,6 @@ struct Myitem
 typedef CGAL::Cartesian									< double >             		Kernel;
 typedef CGAL::Linear_cell_complex_traits< 3, Kernel >         		Traits;
 typedef CGAL::Linear_cell_complex				< 3, 3, Traits, Myitem >	LCC_3;
-
 /* ==========================================================================
    ========================================================================== */
 
@@ -61,22 +60,45 @@ typedef CGAL::Linear_cell_complex				< 3, 3, Traits, Myitem >	LCC_3;
 
 
 
+typedef enum { LOCAL, GLOBAL } Sampler;
+
+
 int main(int argc, char* argv[])
 {
 	srand(time(NULL));
 	
-	float threshold = 0.8;
+	float		threshold = 0.75f;
+	Sampler	method		= GLOBAL;
 	
 	if ( argc < 2 || !strcmp(argv[1],"-h") || !strcmp(argv[1],"-?") )
 	{
-		std::cout	<< "Usage : load_off filename"					<< std::endl
-							<< "   filename being an '.off' file."	<< std::endl;
+		std::cout	<< "Usage : segmentation filename [options]"															<< std::endl
+							<< "   filename being an '.off' file."																		<< std::endl
+							<< "Available options :"																									<< std::endl
+							<< " -s <float>        select the threshold for variation [-1, 1]"				<< std::endl
+							<< "                   (default 0.75)"																		<< std::endl
+							<< "                   the higher the threshold the smaller the segments"	<< std::endl
+							<< " -m [local|global] select segmentation method"												<< std::endl
+							<< "                   (default global)"																	<< std::endl;
 		return EXIT_FAILURE;
 	}
 	
-	if ( argc < 4 || !strcmp(argv[2], "-s") )
+	for (int i = 2; i<argc; ++i)
 	{
-		threshold = atof(argv[3]);
+		if (argc > i+1 && !strcmp(argv[i], "-s"))
+			threshold = atof(argv[++i]);
+		else if (argc > i+1 && !strcmp(argv[i], "-m"))
+		{
+			++i;
+			if (!strcmp(argv[i], "local"))
+				method = LOCAL;
+			else if (!strcmp(argv[i], "global"))
+				method = GLOBAL;
+			else
+				printf("Warning : Unknown segmentation method : %s\n", argv[i]);
+		}
+		else
+			printf("Warning : Unknown option : %s\n", argv[i]);
 	}
 			
 	std::ifstream ifs(argv[1]);
@@ -87,14 +109,15 @@ int main(int argc, char* argv[])
 	}
 	
 	
-	LCC_3 lcc;
+	LCC_3							lcc;
+	Geom_utils<LCC_3>	geomutils;
 	CGAL::load_off(lcc, ifs);
 
 	
-	typename LCC_3::Dart_range::iterator it_begin = lcc.darts().begin();
-	typename LCC_3::Dart_range::iterator it_end   = lcc.darts().end();
+	LCC_3::Dart_range::iterator it_begin = lcc.darts().begin();
+	LCC_3::Dart_range::iterator it_end   = lcc.darts().end();
 	
-	for ( typename LCC_3::Dart_range::iterator it = it_begin; it != it_end; ++it )
+	for ( LCC_3::Dart_range::iterator it = it_begin; it != it_end; ++it )
 	{
 		it->attribute<0>()->info().r = 1;
 		it->attribute<0>()->info().g = 0;
@@ -111,9 +134,7 @@ int main(int argc, char* argv[])
 		if (it->attribute<2>() == NULL)
 		{
 			lcc.set_attribute<2>(it, lcc.create_attribute<2>());
-			// it->attribute<2>()->info().r = 0;
-			// it->attribute<2>()->info().g = 0;
-			// it->attribute<2>()->info().b = 0;
+			it->attribute<2>()->info().normal() = geomutils.get_facet_normal(lcc, it);
 		}
 	}
 
@@ -127,16 +148,63 @@ int main(int argc, char* argv[])
 	std::cout << "Computing Segmentation ... ";
 	fflush(stdout);
 	
-	Geom_utils<LCC_3> geomutils;
-	
-	for ( typename LCC_3::Dart_range::iterator it1 = it_begin; it1 != it_end; ++it1 )
-		for (	typename LCC_3::Dart_of_orbit_range<2>::iterator it2 = lcc.darts_of_orbit<2>(it1).begin(); it2.cont(); ++it2 )
+	switch (method)
+
+	{
+		case LOCAL:
 		{
-			Local_vector n1 = geomutils.get_facet_normal(lcc, it1);
-			Local_vector n2 = geomutils.get_facet_normal(lcc, it2);
-			if (n1 * n2 > threshold)
-				UnionFind::merge(it1->attribute<2>()->info(), it2->attribute<2>()->info());
+			for ( LCC_3::Dart_range::iterator it1 = it_begin; it1 != it_end; ++it1 )
+			{
+				Local_vector n1 = geomutils.get_facet_normal(lcc, it1);
+				for ( LCC_3::Dart_of_orbit_range<2>::iterator it2 = lcc.darts_of_orbit<2>(it1).begin(); it2.cont(); ++it2 )
+				{
+					Local_vector n2 = geomutils.get_facet_normal(lcc, it2);
+					if (n1 * n2 >= threshold)
+						UnionFind::merge(it1->attribute<2>()->info(), it2->attribute<2>()->info());
+				}
+			}
+			break;
 		}
+		
+		case GLOBAL:
+		{
+			int treated = lcc.get_new_mark();
+			for ( LCC_3::Dart_range::iterator it = it_begin; it != it_end; ++it )
+				{
+				if ( !lcc.is_marked(it, treated) )
+				{
+					lcc.mark(it, treated);		
+				
+					std::list<LCC_3::Dart_of_orbit_range<2>::iterator> queue;
+					for (	LCC_3::Dart_of_orbit_range<2>::iterator it1 = lcc.darts_of_orbit<2>(it).begin(); it1.cont(); ++it1 )
+						queue.push_back(it1);
+			
+					while (!queue.empty())
+					{
+						LCC_3::Dart_of_orbit_range<2>::iterator it1 = queue.front();
+						queue.pop_front();
+				
+						Local_vector n1 = it->attribute<2>()->info().root().normal();
+						Local_vector n2 = it1->attribute<2>()->info().root().normal();
+				
+						if (n1 * n2 >= threshold)
+						{
+							UnionFind::merge(it->attribute<2>()->info(), it1->attribute<2>()->info(), true);
+							if (!lcc.is_marked(it1, treated))
+							{
+								for (	LCC_3::Dart_of_orbit_range<2>::iterator it2 = lcc.darts_of_orbit<2>(it1).begin(); it2.cont(); ++it2 )
+									queue.push_back(it2);
+								lcc.mark(it1, treated);
+							}
+						}
+					}
+				}
+			}
+			CGAL_assertion(lcc.is_whole_map_marked(treated));
+			lcc.free_mark(treated);  
+			break;
+		}
+	}
 	
 	std::cout << "done" << std::endl;
 	/* ======================================================================== */
